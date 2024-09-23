@@ -8,5 +8,8 @@ anyhow = "1.0.89"
 reqwest = { version = "0.12.7", default-features = false, features = ["json", "blocking", "rustls-tls"] }
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.63"
-trust-dns-resolver = "0.23.2"
+trust-dns-resolver = "0.21"
 rayon = "1.10.0"
+tokio = { version = "1.40.0", features = ["full"] }
+futures = "0.3.30"
+tokio-stream = "0.1.16"
