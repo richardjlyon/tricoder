@@ -6,11 +6,8 @@ use futures::stream;
 use futures::StreamExt;
 use reqwest::Client;
 use std::{collections::HashSet, time::Duration};
-use trust_dns_resolver::{
-    config::{ResolverConfig, ResolverOpts},
-    name_server::{GenericConnection, GenericConnectionProvider, TokioRuntime},
-    AsyncResolver,
-};
+use tracing::info;
+use trust_dns_resolver::{config::{ResolverConfig, ResolverOpts}, name_server::{GenericConnection, GenericConnectionProvider, TokioRuntime}, AsyncResolver, TokioAsyncResolver};
 
 type DnsResolver = AsyncResolver<GenericConnection, GenericConnectionProvider<TokioRuntime>>;
 
@@ -22,11 +19,7 @@ pub async fn enumerate(http_client: &Client, target: &str) -> Result<Vec<Subdoma
         .json()
         .await?;
 
-    let mut dns_resolver_opts = ResolverOpts::default();
-    dns_resolver_opts.timeout = Duration::from_secs(4);
-
-    let dns_resolver = AsyncResolver::tokio(ResolverConfig::default(), dns_resolver_opts)
-        .expect("subdomain resolver: building DNS client");
+    info!("Found {} entries", entries.len());
 
     // clean and dedup results
     let mut subdomains: HashSet<String> = entries
@@ -41,7 +34,12 @@ pub async fn enumerate(http_client: &Client, target: &str) -> Result<Vec<Subdoma
         .filter(|subdomain: &String| subdomain != target)
         .filter(|subdomain: &String| !subdomain.contains("*"))
         .collect();
+
     subdomains.insert(target.to_string());
+
+    let dns_resolver = build_resolver(500);
+
+    info!("Resolving {} subdomains", subdomains.len());
 
     let subdomains: Vec<Subdomain> = stream::iter(subdomains.into_iter())
         .map(|domain| Subdomain {
@@ -63,6 +61,15 @@ pub async fn enumerate(http_client: &Client, target: &str) -> Result<Vec<Subdoma
         .await;
 
     Ok(subdomains)
+}
+
+fn build_resolver(millis: u64) -> TokioAsyncResolver {
+    let mut dns_resolver_opts = ResolverOpts::default();
+    dns_resolver_opts.timeout = Duration::from_millis(millis);
+
+    let dns_resolver = AsyncResolver::tokio(ResolverConfig::default(), dns_resolver_opts)
+        .expect("subdomain resolver: building DNS client");
+    dns_resolver
 }
 
 pub async fn resolves(dns_resolver: &DnsResolver, domain: &Subdomain) -> bool {

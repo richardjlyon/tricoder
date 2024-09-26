@@ -5,7 +5,12 @@ meta {
 }
 
 get {
-  url: https://crt.sh/?q=%.[richardlyon.net]&output=json
+  url: https://crt.sh/?q=%.richardlyon.net&output=json
   body: none
   auth: none
+}
+
+params:query {
+  q: %.richardlyon.net
+  output: json
 }
