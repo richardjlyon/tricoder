@@ -3,6 +3,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone)]
 pub struct Subdomain {
     pub domain: String,
+    #[allow(dead_code)]
     pub has_address: bool,
     pub open_ports: Vec<Port>,
 }
