@@ -17,7 +17,7 @@ mod common_ports;
 const PORTS_CONCURRENCY: usize = 200;
 const SUBDOMAINS_CONCURRENCY: usize = 100;
 const CRT_SH_TIMEOUT: Duration = Duration::from_secs(10);
-const PORT_TIMEOUT: Duration = Duration::from_secs(3);
+const PORT_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -46,8 +46,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Concurrent stream method 1: Using buffer_unordered + collect
     let scan_result: Vec<Subdomain> = stream::iter(subdomains.into_iter())
-        .map(|subdomain| ports::scan_ports(PORTS_CONCURRENCY, subdomain))
+        .map(|subdomain: Subdomain| tokio::spawn(ports::scan_ports(PORTS_CONCURRENCY, subdomain)))
         .buffer_unordered(SUBDOMAINS_CONCURRENCY)
+        .map(|result| result.unwrap())
         .collect()
         .await;
 

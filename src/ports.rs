@@ -3,20 +3,19 @@ use crate::{
     model::{Port, Subdomain},
     PORT_TIMEOUT,
 };
-use futures::StreamExt;
+use futures::{stream, StreamExt};
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Instant,
 };
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
 
 #[tracing::instrument(skip(subdomain), fields(subdomain = subdomain.domain))]
-pub async fn scan_ports(concurrency: usize, subdomain: Subdomain) -> Subdomain {
-    let mut ret = subdomain.clone();
+pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdomain {
     tracing::debug!("Scanning");
     let now = Instant::now();
-    let socket_addresses: Vec<SocketAddr> = format!("{}:1024", subdomain.domain)
+
+    let socket_addresses: Vec<SocketAddr> = format!("{}:1024", &subdomain.domain)
         .to_socket_addrs()
         .expect("port scanner: Creating socket address")
         .collect();
@@ -27,36 +26,19 @@ pub async fn scan_ports(concurrency: usize, subdomain: Subdomain) -> Subdomain {
 
     let socket_address = socket_addresses[0];
 
-    // Concurrent stream method 3: using channels
-    let (input_tx, input_rx) = mpsc::channel(concurrency);
-    let (output_tx, output_rx) = mpsc::channel(concurrency);
+    subdomain.open_ports = stream::iter(
+        // we clone to avoid some borrowing issues
+        MOST_COMMON_PORTS_100.to_owned(),
+    )
+    .map(|port| scan_port(socket_address, port))
+    .buffer_unordered(concurrency)
+    .filter(|p| futures::future::ready(p.is_open))
+    .collect::<Vec<Port>>()
+    .await;
 
-    tokio::spawn(async move {
-        for port in MOST_COMMON_PORTS_100 {
-            let _ = input_tx.send(*port).await;
-        }
-    });
-
-    let input_rx_stream = tokio_stream::wrappers::ReceiverStream::new(input_rx);
-    input_rx_stream
-        .for_each_concurrent(concurrency, |port| {
-            let output_tx = output_tx.clone();
-            async move {
-                let port = scan_port(socket_address, port).await;
-                if port.is_open {
-                    let _ = output_tx.send(port).await;
-                }
-            }
-        })
-        .await;
-    // close channel
-    drop(output_tx);
-
-    let output_rx_stream = tokio_stream::wrappers::ReceiverStream::new(output_rx);
-    ret.open_ports = output_rx_stream.collect().await;
     tracing::debug!("Scanned in {:?}", now.elapsed());
 
-    ret
+    subdomain
 }
 
 #[tracing::instrument(skip(socket_address))]
