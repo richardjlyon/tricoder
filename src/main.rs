@@ -60,6 +60,10 @@ async fn main() -> Result<(), anyhow::Error> {
     );
 
     for subdomain in scan_result {
+        if subdomain.open_ports.is_empty() {
+            continue;
+        }
+
         println!("{}:", &subdomain.domain);
         for port in &subdomain.open_ports {
             println!("    {}: open", port.port);

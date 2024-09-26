@@ -15,10 +15,11 @@ pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdoma
     tracing::debug!("Scanning");
     let now = Instant::now();
 
-    let socket_addresses: Vec<SocketAddr> = format!("{}:1024", &subdomain.domain)
-        .to_socket_addrs()
-        .expect("port scanner: Creating socket address")
-        .collect();
+    let socket_addresses: Vec<SocketAddr> =
+        match format!("{}:1024", &subdomain.domain).to_socket_addrs() {
+            Ok(addrs) => addrs.collect(),
+            Err(_) => return subdomain,
+        };
 
     if socket_addresses.is_empty() {
         return subdomain;
