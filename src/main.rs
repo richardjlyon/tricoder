@@ -4,6 +4,7 @@ use std::{
     env,
     time::{Duration, Instant},
 };
+use tracing::info;
 
 mod error;
 pub use error::Error;
@@ -15,6 +16,8 @@ mod common_ports;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt::init();
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -32,15 +35,20 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let subdomains = subdomains::enumerate(&http_client, target).await?;
 
+    info!(
+        "Found {} subdomains in {:?}",
+        subdomains.len(),
+        scan_start.elapsed()
+    );
+
     // Concurrent stream method 1: Using buffer_unordered + collect
     let scan_result: Vec<Subdomain> = stream::iter(subdomains.into_iter())
         .map(|subdomain| ports::scan_ports(ports_concurrency, subdomain))
         .buffer_unordered(subdomains_concurrency)
         .collect()
         .await;
-    
-    let scan_duration = scan_start.elapsed();
-    println!("Scan completed in {:?}", scan_duration);
+
+    info!("Scan completed in {:?}", scan_start.elapsed());
 
     for subdomain in scan_result {
         println!("{}:", &subdomain.domain);
