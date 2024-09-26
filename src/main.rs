@@ -65,7 +65,7 @@ async fn main() -> Result<(), anyhow::Error> {
             println!("    {}: open", port.port);
         }
 
-        println!("");
+        println!();
     }
 
     Ok(())

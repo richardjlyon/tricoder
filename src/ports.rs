@@ -20,7 +20,7 @@ pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdoma
         .expect("port scanner: Creating socket address")
         .collect();
 
-    if socket_addresses.len() == 0 {
+    if socket_addresses.is_empty() {
         return subdomain;
     }
 
