@@ -1,10 +1,13 @@
 use crate::{
     common_ports::MOST_COMMON_PORTS_100,
     model::{Port, Subdomain},
+    PORT_TIMEOUT,
 };
 use futures::StreamExt;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::Duration;
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    time::Instant,
+};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 
@@ -58,13 +61,12 @@ pub async fn scan_ports(concurrency: usize, subdomain: Subdomain) -> Subdomain {
 
 #[tracing::instrument(skip(socket_address))]
 async fn scan_port(mut socket_address: SocketAddr, port: u16) -> Port {
-    let timeout = Duration::from_secs(3);
     tracing::trace!("Scanning");
     socket_address.set_port(port);
     let start = Instant::now();
 
     let is_open = matches!(
-        tokio::time::timeout(timeout, TcpStream::connect(&socket_address)).await,
+        tokio::time::timeout(PORT_TIMEOUT, TcpStream::connect(&socket_address)).await,
         Ok(Ok(_)),
     );
 
