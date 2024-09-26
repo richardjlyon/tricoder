@@ -6,6 +6,8 @@ pub enum Error {
     CliUsage,
     #[error("Reqwest: {0}")]
     Reqwest(String),
+    #[error("Decoding: {0}")]
+    Decoding(String),
 }
 
 impl std::convert::From<reqwest::Error> for Error {

@@ -1,5 +1,5 @@
 use crate::{
-    common_ports::MOST_COMMON_PORTS_100,
+    common_ports::{MOST_COMMON_PORTS, MOST_COMMON_PORTS_100},
     model::{Port, Subdomain},
     PORT_TIMEOUT,
 };
@@ -28,7 +28,7 @@ pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdoma
 
     subdomain.open_ports = stream::iter(
         // we clone to avoid some borrowing issues
-        MOST_COMMON_PORTS_100.to_owned(),
+        MOST_COMMON_PORTS.to_owned(),
     )
     .map(|port| scan_port(socket_address, port))
     .buffer_unordered(concurrency)
